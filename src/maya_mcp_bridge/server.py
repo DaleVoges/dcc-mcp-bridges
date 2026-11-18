@@ -4,7 +4,7 @@ Maya MCP server.
 Exposes tools that let Claude drive a running Autodesk Maya session through the
 `claude_mcp_bridge` Maya plug-in (which must be loaded in Maya).
 
-Run (stdio transport):  python maya_mcp_server.py
+Run (stdio transport):  uvx maya-mcp-bridge    (or: python -m maya_mcp_bridge)
 Env vars:
     MAYA_MCP_HOST     (default 127.0.0.1)
     MAYA_MCP_PORT        first port to scan for Mayas (default 7377)
@@ -28,6 +28,8 @@ try:  # MCP Python SDK 2.x
 except ImportError:  # MCP Python SDK 1.x
     from mcp.server.fastmcp import FastMCP, Image
     from mcp.server.fastmcp.exceptions import ToolError
+
+from maya_mcp_bridge import __version__
 
 HOST = os.environ.get("MAYA_MCP_HOST", "127.0.0.1")
 PORT = int(os.environ.get("MAYA_MCP_PORT", "7377"))            # first port scanned
@@ -62,7 +64,8 @@ Tips:
 - Do not open/save/close scenes or delete large amounts of data unless the user asked.
 """
 
-mcp = FastMCP("maya", instructions=INSTRUCTIONS)
+mcp = FastMCP("maya", instructions=INSTRUCTIONS, version=__version__) \
+    if "version" in FastMCP.__init__.__code__.co_varnames else FastMCP("maya", instructions=INSTRUCTIONS)
 
 
 # ----------------------------------------------------------------------------
@@ -251,7 +254,14 @@ def _format(resp: dict[str, Any]) -> str:
 @mcp.tool()
 def maya_status() -> str:
     """Reports the selected Maya: version, Python version, port, pid and open scene."""
-    return _format(maya.call({"cmd": "ping"}))
+    resp = maya.call({"cmd": "ping"})
+    text = _format(resp)
+    plugin_version = (resp.get("result") or {}).get("bridge_version")
+    if plugin_version != __version__:
+        text += (f"\n\nNote: the Maya plug-in is version {plugin_version} but this server is "
+                 f"{__version__}. Tell the user to update the plug-in by dragging the latest "
+                 "drag_to_install.py into Maya.")
+    return text
 
 
 @mcp.tool()

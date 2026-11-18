@@ -5,11 +5,15 @@ Needs one bridge running already (tests\\run_bridge_mayapy.py). Pass the mayapy 
 import os
 import subprocess
 import sys
+
+# Tests only use ports 7390-7391, so they can never reach (or wipe) a real Maya on 7377+.
+os.environ["MAYA_MCP_PORT"] = "7390"
+os.environ["MAYA_MCP_PORT_RANGE"] = "2"
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(HERE, "..", "server"))
-import maya_mcp_server as s  # noqa: E402
+sys.path.insert(0, os.path.join(HERE, "..", "src"))
+from maya_mcp_bridge import server as s  # noqa: E402
 
 mayapy = sys.argv[1]
 old = s.scan()[0]

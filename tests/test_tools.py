@@ -2,8 +2,12 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "server"))
-import maya_mcp_server as s  # noqa: E402
+# Tests only use ports 7390-7391, so they can never reach (or wipe) a real Maya on 7377+.
+os.environ["MAYA_MCP_PORT"] = "7390"
+os.environ["MAYA_MCP_PORT_RANGE"] = "2"
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
+from maya_mcp_bridge import server as s  # noqa: E402
 
 print(s.maya_status())
 print(s.execute_python("cmds.file(new=True, force=True)\ncube = cmds.polyCube(name='claudeCube')[0]\n"

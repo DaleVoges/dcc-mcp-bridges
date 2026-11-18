@@ -4,7 +4,8 @@ Maya MCP server.
 Exposes tools that let Claude drive a running Autodesk Maya session through the
 `claude_mcp_bridge` Maya plug-in (which must be loaded in Maya).
 
-Run (stdio transport):  uvx maya-mcp-bridge    (or: python -m maya_mcp_bridge)
+Run (stdio transport):  uvx --from git+https://github.com/DaleVoges/maya-mcp-bridge maya-mcp-bridge
+                        (or, from a checkout: python -m maya_mcp_bridge)
 Env vars:
     MAYA_MCP_HOST     (default 127.0.0.1)
     MAYA_MCP_PORT        first port to scan for Mayas (default 7377)

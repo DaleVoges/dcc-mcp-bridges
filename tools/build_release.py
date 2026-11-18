@@ -1,15 +1,13 @@
-"""Builds the release files into dist/.
+"""Builds the Maya download into dist/maya-mcp-bridge-<version>.zip.
 
     python tools/build_release.py
 
-Produces:
-    dist/maya-mcp-bridge-<version>.zip   the Maya download (drag_to_install.py + maya_module/)
-    dist/*.whl, dist/*.tar.gz             the PyPI package (needs `uv` on PATH)
+The zip holds drag_to_install.py and maya_module/. The server isn't in it: Claude installs
+that straight from the GitHub repo with uvx.
 """
 import os
 import re
 import shutil
-import subprocess
 import sys
 import zipfile
 
@@ -44,12 +42,6 @@ def main():
         for rel in files:
             zf.write(os.path.join(ROOT, rel), f"{folder}/{rel}")
     print("built", zip_path)
-
-    uv = shutil.which("uv")
-    if uv is None:
-        print("uv not found on PATH; skipping the PyPI build (install uv, then run `uv build`).")
-        return
-    subprocess.check_call([uv, "build", "--out-dir", DIST], cwd=ROOT)
 
 
 if __name__ == "__main__":

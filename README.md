@@ -25,7 +25,7 @@ To **update**, drag the new version's `drag_to_install.py` in and click *Update*
 
 ### 2. Claude: connect the server
 
-The server runs with [uv](https://docs.astral.sh/uv/getting-started/installation/), which downloads and runs it for you, with no manual Python setup. Install uv once:
+The server runs with [uv](https://docs.astral.sh/uv/getting-started/installation/), which downloads it from this repo and runs it for you, with no manual Python setup. You need [git](https://git-scm.com/downloads) installed (uv uses it to fetch the repo). Install uv once:
 
 ```powershell
 # Windows
@@ -42,7 +42,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 **Claude Code:**
 
 ```bash
-claude mcp add maya -- uvx maya-mcp-bridge
+claude mcp add maya -- uvx --from git+https://github.com/DaleVoges/maya-mcp-bridge maya-mcp-bridge
 ```
 
 **Claude Desktop:** open Settings → Developer → Edit Config and add:
@@ -52,7 +52,7 @@ claude mcp add maya -- uvx maya-mcp-bridge
   "mcpServers": {
     "maya": {
       "command": "uvx",
-      "args": ["maya-mcp-bridge"]
+      "args": ["--from", "git+https://github.com/DaleVoges/maya-mcp-bridge", "maya-mcp-bridge"]
     }
   }
 }
@@ -119,8 +119,8 @@ Layout:
 
 - `maya_module/plug-ins/claude_mcp_bridge.py`: the Maya plug-in (Python 2.7 and 3)
 - `drag_to_install.py`: the drag-and-drop installer
-- `src/maya_mcp_bridge/`: the MCP server package published to PyPI
-- `tools/build_release.py`: builds the release zip and the PyPI package into `dist/`
+- `src/maya_mcp_bridge/`: the MCP server package (uvx installs it from this repo)
+- `tools/build_release.py`: builds the Maya release zip into `dist/`
 
 ### Tests
 
@@ -158,6 +158,5 @@ mayapy tests\test_installer.py <unzipped release folder> check-module   # in a f
 ### Releasing
 
 1. Bump `PLUGIN_VERSION` in the plug-in and `__version__` in `src/maya_mcp_bridge/__init__.py` (the build fails if they differ).
-2. `python tools/build_release.py`
-3. `uv publish dist/*.whl dist/*.tar.gz` to upload to PyPI.
-4. Create a GitHub release and attach `dist/maya-mcp-bridge-<version>.zip`.
+2. Push to `main`. That's the server release: uvx installs from the repo.
+3. `python tools/build_release.py`, then create a GitHub release tagged `v<version>` and attach `dist/maya-mcp-bridge-<version>.zip`.

@@ -1,7 +1,7 @@
 """Launches the MCP server over stdio (as Claude does) and calls tools through the protocol.
 
     python tests/test_mcp_protocol.py                          # server from src/
-    python tests/test_mcp_protocol.py uvx --from dist/x.whl maya-mcp-bridge   # any command
+    python tests/test_mcp_protocol.py uvx --from git+https://github.com/DaleVoges/maya-mcp-bridge maya-mcp-bridge
 """
 import asyncio
 import os

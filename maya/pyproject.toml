@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "maya-mcp-bridge"
+dynamic = ["version"]
+description = "MCP server that lets Claude control Autodesk Maya (maya.cmds, OpenMaya, PyMEL, MEL) through a Maya plug-in."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["mcp>=1.2,<3"]
+keywords = ["maya", "autodesk-maya", "mcp", "model-context-protocol", "claude", "pymel", "openmaya"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Topic :: Multimedia :: Graphics :: 3D Modeling",
+    "Topic :: Multimedia :: Graphics :: 3D Rendering",
+]
+
+[project.urls]
+Homepage = "https://github.com/DaleVoges/maya-mcp-bridge"
+Issues = "https://github.com/DaleVoges/maya-mcp-bridge/issues"
+
+[project.scripts]
+maya-mcp-bridge = "maya_mcp_bridge.server:main"
+
+[tool.hatch.version]
+path = "src/maya_mcp_bridge/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/maya_mcp_bridge"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/", "README.md", "pyproject.toml"]

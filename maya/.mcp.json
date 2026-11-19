@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "maya": {
-      "command": ".venv/Scripts/python.exe",
-      "args": ["-m", "maya_mcp_bridge"]
-    }
-  }
-}

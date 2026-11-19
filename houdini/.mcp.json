@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "houdini": {
+      "command": ".venv/Scripts/python.exe",
+      "args": ["-m", "houdini_mcp_bridge"]
+    }
+  }
+}

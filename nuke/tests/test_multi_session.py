@@ -13,7 +13,7 @@ os.environ["NUKE_MCP_PORT"] = "7590"
 os.environ["NUKE_MCP_PORT_RANGE"] = "2"
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(HERE, "..", "src"))
+sys.path[:0] = [os.path.join(HERE, ".."), os.path.join(HERE, "..", "..", "core")]
 from nuke_mcp_bridge import server as s  # noqa: E402
 
 NUKE = sys.argv[1]
@@ -33,14 +33,14 @@ def launch(port):
 
 try:
     a, b = launch(7590), launch(7591)
-    found = s.scan()
+    found = s.bridge.scan()
     assert sorted(i["pid"] for i in found) == sorted([a.pid, b.pid]), found
     print("scan OK: two sessions")
 
     try:
         s.execute_python("nuke.nodes.NoOp(name='mustNotExist')")
         raise AssertionError("ran with two sessions and none selected")
-    except s.NukeBridgeError as exc:
+    except s.BridgeError as exc:
         assert "none is selected" in str(exc)
         print("refused OK with two sessions")
 
@@ -60,7 +60,7 @@ try:
     except s.SessionGoneError as exc:
         assert str(c.pid) in str(exc)
         print("takeover refused OK ->", str(exc).splitlines()[0][:110])
-    assert s.nuke_sessions.current is None, "dead session still selected"
+    assert s.bridge.current is None, "dead session still selected"
 
     s.select_nuke_session(7590)
     assert "true" in s.execute_python("nuke.toNode('mustNotExist') is None").lower()

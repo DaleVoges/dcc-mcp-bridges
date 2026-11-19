@@ -12,7 +12,7 @@ os.environ["NUKE_MCP_PORT"] = "7590"
 os.environ["NUKE_MCP_PORT_RANGE"] = "2"
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(HERE, "..", "src"))
+sys.path[:0] = [os.path.join(HERE, ".."), os.path.join(HERE, "..", "..", "core")]
 from nuke_mcp_bridge import server as s  # noqa: E402
 
 OUT = sys.argv[1] if len(sys.argv) > 1 else None
@@ -80,7 +80,7 @@ assert "Missing" in out, out
 try:
     s.execute_python("1/0")
     raise AssertionError("should fail")
-except s.NukeBridgeError as exc:
+except s.BridgeError as exc:
     assert "ZeroDivisionError" in str(exc)
     print("error OK")
 

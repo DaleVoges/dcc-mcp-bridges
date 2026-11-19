@@ -4,39 +4,20 @@ Nuke MCP server.
 Exposes tools that let Claude drive a running Foundry Nuke session through the
 `claude_mcp_bridge` module running inside Nuke (installed with `nuke-mcp-bridge install`).
 
-Run (stdio transport):  uvx --from git+https://github.com/DaleVoges/nuke-mcp-bridge nuke-mcp-bridge
+Run (stdio transport):  uvx --from git+https://github.com/DaleVoges/dcc-mcp-bridges nuke-mcp-bridge
                         (or, from a checkout: python -m nuke_mcp_bridge)
-Env vars:
-    NUKE_MCP_HOST        (default 127.0.0.1)
-    NUKE_MCP_PORT        first port to scan for Nukes (default 7577)
-    NUKE_MCP_PORT_RANGE  how many ports to scan (default 10)
-    NUKE_MCP_TIMEOUT     seconds to wait for a Nuke call (default 600)
+Env vars: NUKE_MCP_HOST, NUKE_MCP_PORT (first port scanned, default 7577),
+          NUKE_MCP_PORT_RANGE (default 10), NUKE_MCP_TIMEOUT (seconds, default 600).
 """
 from __future__ import annotations
 
-import base64
-import itertools
-import json
-import os
-import socket
-import threading
-from concurrent.futures import ThreadPoolExecutor
-from typing import Any
-
-try:  # MCP Python SDK 2.x
-    from mcp.server.mcpserver import Image, MCPServer as FastMCP
-    from mcp.server.mcpserver.exceptions import ToolError
-except ImportError:  # MCP Python SDK 1.x
-    from mcp.server.fastmcp import FastMCP, Image
-    from mcp.server.fastmcp.exceptions import ToolError
+from dcc_mcp_core import Bridge, BridgeError, Image, SessionGoneError, create_server
 
 from nuke_mcp_bridge import __version__
 
-HOST = os.environ.get("NUKE_MCP_HOST", "127.0.0.1")
-PORT = int(os.environ.get("NUKE_MCP_PORT", "7577"))            # first port scanned
-PORT_RANGE = int(os.environ.get("NUKE_MCP_PORT_RANGE", "10"))  # number of ports scanned
-TIMEOUT = float(os.environ.get("NUKE_MCP_TIMEOUT", "600"))
-INSTALL_COMMAND = "uvx --from git+https://github.com/DaleVoges/nuke-mcp-bridge nuke-mcp-bridge install"
+__all__ = ["BridgeError", "SessionGoneError", "bridge", "main", "mcp"]
+
+INSTALL_COMMAND = "uvx --from git+https://github.com/DaleVoges/dcc-mcp-bridges nuke-mcp-bridge install"
 
 INSTRUCTIONS = """\
 You are connected to a live Foundry Nuke session.
@@ -65,201 +46,19 @@ Tips:
 - Do not open/save/close scripts, or render Write nodes to disk, unless the user asked.
 """
 
-mcp = FastMCP("nuke", instructions=INSTRUCTIONS, version=__version__) \
-    if "version" in FastMCP.__init__.__code__.co_varnames else FastMCP("nuke", instructions=INSTRUCTIONS)
+
+def _session_label(s: dict) -> str:
+    return f"{s.get('product')} {s.get('nuke_version')}" + ("" if s.get("gui") else " (terminal mode)")
 
 
-# ----------------------------------------------------------------------------
-# Bridge client
-# ----------------------------------------------------------------------------
-class NukeBridgeError(ToolError):
-    """Raised for Nuke-side errors; ToolError makes the message reach Claude verbatim."""
-
-
-class SessionGoneError(NukeBridgeError):
-    """The selected Nuke is no longer reachable (closed, or its port now belongs to another)."""
-
-
-_ids = itertools.count(1)
-
-
-def _exchange(fh, payload: dict[str, Any]) -> dict[str, Any]:
-    fh.write((json.dumps(dict(payload, id=next(_ids))) + "\n").encode("utf-8"))
-    fh.flush()
-    line = fh.readline()
-    if not line:
-        raise ConnectionError("Nuke closed the connection")
-    return json.loads(line.decode("utf-8"))
-
-
-def probe(port: int) -> dict[str, Any] | None:
-    """Returns the session info of the Nuke bridge on `port`, or None if nothing answers."""
-    try:
-        with socket.create_connection((HOST, port), timeout=0.5) as sock:
-            sock.settimeout(3)
-            with sock.makefile("rwb") as fh:
-                resp = _exchange(fh, {"cmd": "ping"})
-    except (OSError, ValueError):
-        return None
-    info = resp.get("result") if resp.get("ok") else None
-    if not info or info.get("app") != "nuke":
-        return None  # something else (e.g. a Maya or Houdini bridge) on this port
-    return info
-
-
-def scan() -> list[dict[str, Any]]:
-    """Finds every Nuke bridge in the port range (probed in parallel)."""
-    ports = range(PORT, PORT + PORT_RANGE)
-    with ThreadPoolExecutor(max_workers=len(ports) or 1) as pool:
-        return [info for info in pool.map(probe, ports) if info]
-
-
-def _describe(sessions: list[dict[str, Any]], selected_pid: int | None = None) -> str:
-    lines = []
-    for s in sessions:
-        mark = "  <- selected" if s.get("pid") == selected_pid else ""
-        busy = "  (busy)" if s.get("busy") else ""
-        mode = "" if s.get("gui") else " (terminal mode)"
-        lines.append(f"- port {s['port']}: {s.get('product')} {s.get('nuke_version')}{mode}, "
-                     f"pid {s['pid']}, script: {s.get('script')}{busy}{mark}")
-    return "\n".join(lines)
-
-
-class NukeClient:
-    """Keeps one TCP connection to one Nuke bridge (identified by port + pid)."""
-
-    def __init__(self, host: str, port: int, timeout: float, pid: int | None = None):
-        self.host, self.port, self.timeout, self.pid = host, port, timeout, pid
-        self._sock: socket.socket | None = None
-        self._file = None
-        self._lock = threading.Lock()
-
-    def _connect(self) -> None:
-        try:
-            sock = socket.create_connection((self.host, self.port), timeout=5)
-        except OSError as exc:
-            raise SessionGoneError(
-                f"Cannot reach Nuke at {self.host}:{self.port} ({exc}). It may have been closed. "
-                "Call list_nuke_sessions to see which Nukes are available."
-            ) from exc
-        sock.settimeout(self.timeout)
-        self._sock = sock
-        self._file = sock.makefile("rwb")
-        if self.pid is not None:
-            # Make sure this port still belongs to the Nuke that was selected.
-            try:
-                info = _exchange(self._file, {"cmd": "ping"}).get("result") or {}
-            except (OSError, ValueError) as exc:
-                self._close()
-                raise SessionGoneError(f"Nuke on port {self.port} stopped answering ({exc}).") from exc
-            if info.get("pid") != self.pid:
-                self._close()
-                raise SessionGoneError(
-                    f"The selected Nuke (pid {self.pid}) is gone; port {self.port} now belongs to "
-                    f"pid {info.get('pid')} with script {info.get('script')}. Nothing was run. "
-                    "Call list_nuke_sessions and confirm with the user which Nuke to use."
-                )
-
-    def _close(self) -> None:
-        for obj in (self._file, self._sock):
-            try:
-                if obj is not None:
-                    obj.close()
-            except OSError:
-                pass
-        self._sock = self._file = None
-
-    def call(self, payload: dict[str, Any]) -> dict[str, Any]:
-        with self._lock:
-            for attempt in range(2):
-                if self._sock is None:
-                    self._connect()
-                try:
-                    return _exchange(self._file, payload)
-                except socket.timeout as exc:
-                    self._close()
-                    raise NukeBridgeError(
-                        f"Nuke did not answer within {self.timeout:.0f}s "
-                        "(it may still be busy running the command)."
-                    ) from exc
-                except (OSError, ConnectionError):
-                    self._close()
-                    if attempt == 1:
-                        raise SessionGoneError("Lost connection to Nuke.")
-            raise NukeBridgeError("unreachable")
-
-    def close(self) -> None:
-        with self._lock:
-            self._close()
-
-
-class Sessions:
-    """Routes calls to the selected Nuke; auto-selects only when exactly one is running."""
-
-    def __init__(self) -> None:
-        self.current: NukeClient | None = None
-        self._lock = threading.Lock()
-
-    def select(self, info: dict[str, Any]) -> None:
-        with self._lock:
-            if self.current is not None:
-                self.current.close()
-            self.current = NukeClient(HOST, info["port"], TIMEOUT, info["pid"])
-
-    def _client(self) -> NukeClient:
-        if self.current is not None:
-            return self.current
-        found = scan()
-        if not found:
-            raise NukeBridgeError(
-                f"No Nuke found on ports {PORT}-{PORT + PORT_RANGE - 1}. Ask the user to open Nuke. "
-                "If it is open, the bridge may not be installed: the user installs it by running "
-                f"`{INSTALL_COMMAND}` in a terminal and restarting Nuke "
-                "(or starts it from Edit > Claude MCP > Start Bridge)."
-            )
-        if len(found) > 1:
-            raise NukeBridgeError(
-                f"{len(found)} Nuke sessions are running and none is selected yet, so nothing "
-                f"was run:\n{_describe(found)}\n"
-                "Ask the user which one to use, then call select_nuke_session(port=...)."
-            )
-        self.select(found[0])
-        return self.current
-
-    def call(self, payload: dict[str, Any]) -> dict[str, Any]:
-        client = self._client()
-        try:
-            return client.call(payload)
-        except SessionGoneError:
-            with self._lock:
-                if self.current is client:
-                    self.current = None
-            raise
-
-
-nuke_sessions = Sessions()
-
-
-def _format(resp: dict[str, Any]) -> str:
-    """Turns a bridge response into text for Claude; raises on Nuke-side errors."""
-    parts = []
-    if resp.get("stdout"):
-        parts.append("stdout:\n" + resp["stdout"].rstrip())
-    if not resp.get("ok"):
-        parts.append("error:\n" + (resp.get("error") or "unknown error").rstrip())
-        raise NukeBridgeError("\n\n".join(parts))
-    result = resp.get("result")
-    if result is not None:
-        if isinstance(result, str) and "\n" in result:
-            parts.append("result:\n" + result.rstrip())
-        else:
-            parts.append("result:\n" + json.dumps(result, indent=2, ensure_ascii=False))
-    return "\n\n".join(parts) or "OK (no output)"
-
-
-def _python(code: str) -> str:
-    return _format(nuke_sessions.call({"cmd": "python", "code": code, "undo": False}))
-
+bridge = Bridge(
+    "nuke", "Nuke", 7577, __version__, _session_label, scene_key="script",
+    not_found_hint="Ask the user to open Nuke. If it is open, the bridge may not be installed: "
+                   f"the user installs it by running `{INSTALL_COMMAND}` in a terminal and "
+                   "restarting Nuke (or starts it from Edit > Claude MCP > Start Bridge).",
+    update_hint=f"Tell the user to update it by running `{INSTALL_COMMAND}` and restarting Nuke.",
+)
+mcp = create_server("nuke", INSTRUCTIONS, __version__)
 
 # Code sent into Nuke must also run on Python 2.7 (Nuke 12): no f-strings inside it.
 _KNOB_HELPERS = r'''
@@ -287,14 +86,7 @@ _SKIP_KNOBS = ("Tab_Knob", "Text_Knob", "PyScript_Knob", "Help_Knob", "Obsolete_
 @mcp.tool()
 def nuke_status() -> str:
     """Reports the selected Nuke: version, product/license, Python version, port, pid, open script."""
-    resp = nuke_sessions.call({"cmd": "ping"})
-    text = _format(resp)
-    bridge_version = (resp.get("result") or {}).get("bridge_version")
-    if bridge_version != __version__:
-        text += (f"\n\nNote: the bridge inside Nuke is version {bridge_version} but this server is "
-                 f"{__version__}. Tell the user to update it by running `{INSTALL_COMMAND}` and "
-                 "restarting Nuke.")
-    return text
+    return bridge.status()
 
 
 @mcp.tool()
@@ -303,22 +95,13 @@ def list_nuke_sessions() -> str:
 
     When several are running, ask the user which one to use and call select_nuke_session.
     """
-    found = scan()
-    if not found:
-        return f"No Nuke found on ports {PORT}-{PORT + PORT_RANGE - 1}."
-    selected = nuke_sessions.current.pid if nuke_sessions.current else None
-    note = "" if selected else "\n\nNo session selected yet."
-    return _describe(found, selected) + note
+    return bridge.list_sessions()
 
 
 @mcp.tool()
 def select_nuke_session(port: int) -> str:
     """Chooses which Nuke the other tools talk to, by the port shown in list_nuke_sessions."""
-    info = probe(port)
-    if info is None:
-        raise NukeBridgeError(f"No Nuke bridge answering on port {port}. Call list_nuke_sessions.")
-    nuke_sessions.select(info)
-    return "Selected:\n" + _describe([info], info["pid"])
+    return bridge.select_session(port)
 
 
 @mcp.tool()
@@ -333,21 +116,20 @@ def execute_python(code: str, undoable: bool = True, reset_namespace: bool = Fal
         undoable: Wrap the call in a single undo step (default True).
         reset_namespace: Clear variables left over from earlier calls first.
     """
-    return _format(nuke_sessions.call({"cmd": "python", "code": code, "undo": undoable,
-                                       "reset": reset_namespace}))
+    return bridge.run("python", code, undoable, reset_namespace)
 
 
 @mcp.tool()
 def execute_tcl(command: str, undoable: bool = True) -> str:
     """Runs a TCL command or expression inside Nuke (nuke.tcl) and returns its result."""
-    return _format(nuke_sessions.call({"cmd": "tcl", "code": command, "undo": undoable}))
+    return bridge.run("tcl", command, undoable)
 
 
 @mcp.tool()
 def get_script_info() -> str:
     """Summarises the open script: name, format, fps, frame range, colour management,
     selection, node counts by class, Read and Write nodes, and Viewer inputs."""
-    return _python(r'''
+    return bridge.python(r'''
 _root = nuke.root()
 _all = nuke.allNodes(recurseGroups=True)
 _counts = {}
@@ -396,7 +178,7 @@ def list_nodes(group: str = "root", node_class: str = "", pattern: str = "*",
         selected_only: Only selected nodes.
         limit: Maximum number of nodes to return.
     """
-    return _python(rf'''
+    return bridge.python(rf'''
 import fnmatch
 _g = nuke.root() if {group!r} == "root" else nuke.toNode({group!r})
 if _g is None:
@@ -421,7 +203,7 @@ def inspect_node(name: str, all_knobs: bool = False) -> str:
         all_knobs: List every knob. By default only knobs changed from their defaults,
             or driven by expressions/animation, are listed.
     """
-    return _python(_KNOB_HELPERS + rf'''
+    return bridge.python(_KNOB_HELPERS + rf'''
 _n = nuke.toNode({name!r})
 if _n is None:
     raise ValueError("No node named %r" % {name!r})
@@ -499,7 +281,7 @@ def get_node_class_info(node_class: str) -> str:
     Args:
         node_class: e.g. "Grade", "Merge2", "Transform", "Blur", "Write", "ColorCorrect".
     """
-    return _python(_KNOB_HELPERS + rf'''
+    return bridge.python(_KNOB_HELPERS + rf'''
 nuke.Undo.disable()
 try:
     with nuke.root():
@@ -533,7 +315,7 @@ finally:
 def get_nuke_help(name: str) -> str:
     """Returns the Python docs for a nuke module member, e.g. "createNode", "Node", "Node.setInput",
     "Knob" or "nodes"."""
-    return _python(rf'''
+    return bridge.python(rf'''
 import pydoc
 _obj = nuke
 for _part in {name!r}.replace("nuke.", "", 1).split("."):
@@ -545,7 +327,7 @@ result = pydoc.plain(pydoc.render_doc(_obj))[:20000]
 @mcp.tool()
 def find_node_errors(recursive: bool = True, limit: int = 200) -> str:
     """Lists nodes that are in an error state (missing files, bad expressions, invalid inputs...)."""
-    return _python(rf'''
+    return bridge.python(rf'''
 _found = []
 for _n in nuke.allNodes(recurseGroups={recursive!r}):
     try:
@@ -572,11 +354,8 @@ def render_frame(node: str = "", frame: int | None = None, width: int = 960) -> 
         frame: Frame number. Default: the current frame.
         width: Output width in pixels (height follows the aspect ratio).
     """
-    resp = nuke_sessions.call({"cmd": "capture", "node": node or None, "frame": frame,
-                               "width": width})
-    if not resp.get("ok"):
-        _format(resp)
-    return Image(data=base64.b64decode(resp["result"]["base64"]), format="png")
+    return bridge.image({"cmd": "capture", "node": node or None, "frame": frame,
+                         "width": width})
 
 
 def main() -> None:

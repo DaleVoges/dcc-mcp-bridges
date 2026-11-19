@@ -14,7 +14,7 @@ import sys
 import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SRC = os.path.join(HERE, "..", "src")
+SRC = os.pathsep.join([os.path.join(HERE, ".."), os.path.join(HERE, "..", "..", "core")])
 NUKES = sys.argv[1:]
 
 USER_INIT = b"import nuke\r\n\r\nnuke.pluginAddPath('my_studio_tools')\r\n"

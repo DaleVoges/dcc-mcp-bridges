@@ -15,7 +15,7 @@ import sys
 import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SRC = os.path.join(HERE, "..", "src")
+SRC = os.pathsep.join([os.path.join(HERE, ".."), os.path.join(HERE, "..", "..", "core")])
 HYTHONS = sys.argv[1:]
 
 CHECK = r'''

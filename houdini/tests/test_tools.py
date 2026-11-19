@@ -10,7 +10,7 @@ os.environ["HOUDINI_MCP_PORT"] = "7490"
 os.environ["HOUDINI_MCP_PORT_RANGE"] = "2"
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(HERE, "..", "src"))
+sys.path[:0] = [os.path.join(HERE, ".."), os.path.join(HERE, "..", "..", "core")]
 from houdini_mcp_bridge import server as s  # noqa: E402
 
 
@@ -47,7 +47,7 @@ show("hscript", s.execute_hscript("opls /obj"))
 try:
     s.execute_hscript("thisisnotacommand")
     raise AssertionError("bad hscript should fail")
-except s.HoudiniBridgeError as exc:
+except s.BridgeError as exc:
     print("hscript error OK ->", str(exc).splitlines()[-1])
 
 show("scene info", s.get_scene_info())
@@ -91,14 +91,14 @@ print("undo removed node:", out.strip().splitlines()[-1])
 try:
     s.execute_python("1/0")
     raise AssertionError("should fail")
-except s.HoudiniBridgeError as exc:
+except s.BridgeError as exc:
     assert "ZeroDivisionError" in str(exc)
     print("error OK")
 
 try:
     s.capture_viewport()
     raise AssertionError("capture should fail without UI")
-except s.HoudiniBridgeError as exc:
+except s.BridgeError as exc:
     print("capture without UI OK ->", str(exc).splitlines()[-1])
 
 s.execute_python("hou.node('/obj/claude_test').destroy()", undoable=False)

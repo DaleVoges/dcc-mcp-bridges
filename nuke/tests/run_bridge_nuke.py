@@ -10,7 +10,7 @@ import sys
 os.environ.setdefault("NUKE_MCP_PORT", "7590")
 os.environ.setdefault("NUKE_MCP_PORT_RANGE", "2")
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(HERE, "..", "src", "nuke_mcp_bridge", "nuke_plugin"))
+sys.path.insert(0, os.path.join(HERE, "..", "nuke_mcp_bridge", "nuke_plugin"))
 
 import claude_mcp_bridge as bridge  # noqa: E402
 

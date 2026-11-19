@@ -8,7 +8,7 @@ import sys
 os.environ.setdefault("HOUDINI_MCP_PORT", "7490")
 os.environ.setdefault("HOUDINI_MCP_PORT_RANGE", "2")
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(HERE, "..", "src", "houdini_mcp_bridge", "houdini_package",
+sys.path.insert(0, os.path.join(HERE, "..", "houdini_mcp_bridge", "houdini_package",
                                 "scripts", "python"))
 
 import claude_mcp_bridge as bridge  # noqa: E402

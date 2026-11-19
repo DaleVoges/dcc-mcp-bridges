@@ -28,7 +28,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 ### 1. Nuke: install the plug-in
 
 ```bash
-uvx --from git+https://github.com/DaleVoges/nuke-mcp-bridge nuke-mcp-bridge install
+uvx --from git+https://github.com/DaleVoges/dcc-mcp-bridges nuke-mcp-bridge install
 ```
 
 This copies a `nuke_mcp_bridge` folder into your `~/.nuke` and adds a marked block to `~/.nuke/init.py` that loads it. Nothing else in `init.py` changes. Restart Nuke: the bridge starts with it, the Script Editor shows `[Claude MCP] Bridge listening on 127.0.0.1:7577`, and **Edit > Claude MCP** has Start/Stop items.
@@ -42,7 +42,7 @@ To **update**, run the same command again. To **uninstall**, run it with `uninst
 **Claude Code:**
 
 ```bash
-claude mcp add nuke -- uvx --from git+https://github.com/DaleVoges/nuke-mcp-bridge nuke-mcp-bridge
+claude mcp add nuke -- uvx --from git+https://github.com/DaleVoges/dcc-mcp-bridges nuke-mcp-bridge
 ```
 
 **Claude Desktop:** open Settings → Developer → Edit Config and add:
@@ -52,7 +52,7 @@ claude mcp add nuke -- uvx --from git+https://github.com/DaleVoges/nuke-mcp-brid
   "mcpServers": {
     "nuke": {
       "command": "uvx",
-      "args": ["--from", "git+https://github.com/DaleVoges/nuke-mcp-bridge", "nuke-mcp-bridge"]
+      "args": ["--from", "git+https://github.com/DaleVoges/dcc-mcp-bridges", "nuke-mcp-bridge"]
     }
   }
 }
@@ -89,7 +89,7 @@ Each Nuke takes the first free port from 7577 to 7586, and the Script Editor sho
 - **Several open:** the tools refuse to run until one is chosen. Claude lists them by version and open script, asks you which one, then selects it.
 - **The selected Nuke closes:** the next call fails with "nothing was run". Each Nuke is identified by its process ID as well as its port, so if another Nuke later takes the same port, Claude won't send code to it by mistake.
 
-Works alongside [maya-mcp-bridge](https://github.com/DaleVoges/maya-mcp-bridge) (ports 7377+) and [houdini-mcp-bridge](https://github.com/DaleVoges/houdini-mcp-bridge) (ports 7477+), so all three can be connected at once.
+All three bridges ([Maya](../maya), [Houdini](../houdini), [Nuke](../nuke)) use their own ports (7377+, 7477+, 7577+), so they can all be connected at once.
 
 ## Settings (environment variables)
 
@@ -113,42 +113,37 @@ The bridge runs any code it receives with your user's permissions. It only liste
 
 ## Development
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e . uv
-```
-
-Claude Code sessions opened in this folder use `.mcp.json`, which runs the server from `src/` (Windows venv path; on macOS/Linux use `.venv/bin/python`).
+Set up the venv at the repo root as the [main README](../README.md#development) describes, and run the commands below from the repo root.
 
 Layout:
 
-- `src/nuke_mcp_bridge/nuke_plugin/`: the plug-in folder copied into `~/.nuke` (`claude_mcp_bridge.py`, `menu.py`); Python 2.7 and 3
-- `src/nuke_mcp_bridge/install.py`: `install` / `uninstall`
-- `src/nuke_mcp_bridge/server.py`: the MCP server
+- `nuke/nuke_mcp_bridge/nuke_plugin/`: the plug-in folder copied into `~/.nuke` (`claude_mcp_bridge.py`, `menu.py`); Python 2.7 and 3
+- `nuke/nuke_mcp_bridge/install.py`: `install` / `uninstall`
+- `nuke/nuke_mcp_bridge/server.py`: the MCP server
 
 ### Tests
 
 The tests use ports 7590-7591 and a throwaway `HOME`, so they never touch a Nuke you have open or your real `.nuke` folder. Terminal mode needs a Nuke render license; the GUI test needs an interactive one. If your Nuke gets its license from a server, set `foundry_LICENSE` (e.g. `4101@your-license-server`) in the shell that runs the tests. Start a test bridge:
 
 ```powershell
-& "C:\Program Files\Nuke16.0v8\Nuke16.0.exe" -t tests\run_bridge_nuke.py
+& "C:\Program Files\Nuke16.0v8\Nuke16.0.exe" -t nuke\tests\run_bridge_nuke.py
 ```
 
 Then:
 
 ```powershell
-.\.venv\Scripts\python.exe tests\test_tools.py         # each tool, called directly
-.\.venv\Scripts\python.exe tests\test_mcp_protocol.py  # through the MCP protocol, like Claude
+.\.venv\Scripts\python.exe nuke\tests\test_tools.py         # each tool, called directly
+.\.venv\Scripts\python.exe nuke\tests\test_mcp_protocol.py  # through the MCP protocol, like Claude
 ```
 
 These start their own Nukes (stop any test bridge first):
 
 ```powershell
-.\.venv\Scripts\python.exe tests\test_multi_session.py "C:\Program Files\Nuke16.0v8\Nuke16.0.exe"
-.\.venv\Scripts\python.exe tests\test_installer.py "C:\Program Files\Nuke16.0v8\Nuke16.0.exe"  # any number of Nukes
-.\.venv\Scripts\python.exe tests\test_gui.py "C:\Program Files\Nuke12.2v2\Nuke12.2.exe" $env:TEMP  # opens a Nuke window
+.\.venv\Scripts\python.exe nuke\tests\test_multi_session.py "C:\Program Files\Nuke16.0v8\Nuke16.0.exe"
+.\.venv\Scripts\python.exe nuke\tests\test_installer.py "C:\Program Files\Nuke16.0v8\Nuke16.0.exe"  # any number of Nukes
+.\.venv\Scripts\python.exe nuke\tests\test_gui.py "C:\Program Files\Nuke12.2v2\Nuke12.2.exe" $env:TEMP  # opens a Nuke window
 ```
 
 ### Releasing
 
-Bump `BRIDGE_VERSION` in `claude_mcp_bridge.py` and `__version__` in `src/nuke_mcp_bridge/__init__.py` together, then push to `main`. uvx installs from the repo, so that's the release. Users get the new server when Claude restarts, and update the Nuke side by rerunning the install command (`nuke_status` tells them when it's out of date).
+Bump `BRIDGE_VERSION` in `claude_mcp_bridge.py` and `__version__` in `nuke/nuke_mcp_bridge/__init__.py` together, then push to `main`. uvx installs from the repo, so that's the release. Users get the new server when Claude restarts, and update the Nuke side by rerunning the install command (`nuke_status` tells them when it's out of date).

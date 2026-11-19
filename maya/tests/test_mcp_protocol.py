@@ -1,7 +1,7 @@
 """Launches the MCP server over stdio (as Claude does) and calls tools through the protocol.
 
-    python tests/test_mcp_protocol.py                          # server from src/
-    python tests/test_mcp_protocol.py uvx --from git+https://github.com/DaleVoges/maya-mcp-bridge maya-mcp-bridge
+    python tests/test_mcp_protocol.py                          # server from this checkout
+    python tests/test_mcp_protocol.py uvx --from git+https://github.com/DaleVoges/dcc-mcp-bridges maya-mcp-bridge
 """
 import asyncio
 import os
@@ -14,7 +14,7 @@ os.environ["MAYA_MCP_PORT_RANGE"] = "2"
 from mcp import ClientSession
 from mcp.client.stdio import StdioServerParameters, stdio_client
 
-SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src")
+SRC = os.pathsep.join([os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."), os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "core")])
 COMMAND = sys.argv[1:] or [sys.executable, "-m", "maya_mcp_bridge"]
 
 

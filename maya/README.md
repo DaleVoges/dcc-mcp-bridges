@@ -16,7 +16,7 @@ Installation has two parts: the plug-in goes into Maya, and the server gets conn
 
 ### 1. Maya: drag and drop
 
-1. Download `maya-mcp-bridge-<version>.zip` from the [latest release](https://github.com/DaleVoges/maya-mcp-bridge/releases/latest) and unzip it anywhere.
+1. Download `maya-mcp-bridge-<version>.zip` from the latest `maya-v…` release on the [releases page](https://github.com/DaleVoges/dcc-mcp-bridges/releases) and unzip it anywhere.
 2. Drag **`drag_to_install.py`** into a Maya viewport.
 
 That's it. The plug-in is copied into your Maya prefs, loads right away, and loads automatically every time Maya starts. One install covers every Maya version you have. You can delete the download afterwards.
@@ -42,7 +42,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 **Claude Code:**
 
 ```bash
-claude mcp add maya -- uvx --from git+https://github.com/DaleVoges/maya-mcp-bridge maya-mcp-bridge
+claude mcp add maya -- uvx --from git+https://github.com/DaleVoges/dcc-mcp-bridges maya-mcp-bridge
 ```
 
 **Claude Desktop:** open Settings → Developer → Edit Config and add:
@@ -52,7 +52,7 @@ claude mcp add maya -- uvx --from git+https://github.com/DaleVoges/maya-mcp-brid
   "mcpServers": {
     "maya": {
       "command": "uvx",
-      "args": ["--from", "git+https://github.com/DaleVoges/maya-mcp-bridge", "maya-mcp-bridge"]
+      "args": ["--from", "git+https://github.com/DaleVoges/dcc-mcp-bridges", "maya-mcp-bridge"]
     }
   }
 }
@@ -108,55 +108,50 @@ The plug-in runs any code it receives with your user's permissions. It only list
 
 ## Development
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e . uv
-```
-
-Claude Code sessions opened in this folder use `.mcp.json`, which runs the server from `src/` (Windows venv path; on macOS/Linux use `.venv/bin/python`).
+Set up the venv at the repo root as the [main README](../README.md#development) describes, and run the commands below from the repo root.
 
 Layout:
 
-- `maya_module/plug-ins/claude_mcp_bridge.py`: the Maya plug-in (Python 2.7 and 3)
-- `drag_to_install.py`: the drag-and-drop installer
-- `src/maya_mcp_bridge/`: the MCP server package (uvx installs it from this repo)
-- `tools/build_release.py`: builds the Maya release zip into `dist/`
+- `maya/maya_module/plug-ins/claude_mcp_bridge.py`: the Maya plug-in (Python 2.7 and 3)
+- `maya/drag_to_install.py`: the drag-and-drop installer
+- `maya/maya_mcp_bridge/`: the MCP server (built on the shared `core/dcc_mcp_core`)
+- `tools/build_maya_release.py`: builds the Maya release zip into `dist/`
 
 ### Tests
 
 The tests use ports 7390-7391 and headless `mayapy`, so they never touch a Maya you have open. Start a test bridge:
 
 ```powershell
-& "C:\Program Files\Autodesk\Maya2026\bin\mayapy.exe" tests\run_bridge_mayapy.py
+& "C:\Program Files\Autodesk\Maya2026\bin\mayapy.exe" maya\tests\run_bridge_mayapy.py
 ```
 
 Then:
 
 ```powershell
-.\.venv\Scripts\python.exe tests\test_tools.py         # each tool, called directly
-.\.venv\Scripts\python.exe tests\test_mcp_protocol.py  # through the MCP protocol, like Claude
+.\.venv\Scripts\python.exe maya\tests\test_tools.py         # each tool, called directly
+.\.venv\Scripts\python.exe maya\tests\test_mcp_protocol.py  # through the MCP protocol, like Claude
 ```
 
 Multi-Maya tests (they kill the headless test Mayas):
 
 ```powershell
 # with two run_bridge_mayapy.py bridges running:
-.\.venv\Scripts\python.exe tests\test_multi_session.py
+.\.venv\Scripts\python.exe maya\tests\test_multi_session.py
 # with one running:
-.\.venv\Scripts\python.exe tests\test_port_takeover.py "C:\Program Files\Autodesk\Maya2026\bin\mayapy.exe"
+.\.venv\Scripts\python.exe maya\tests\test_port_takeover.py "C:\Program Files\Autodesk\Maya2026\bin\mayapy.exe"
 ```
 
 Installer test, against a throwaway prefs folder (set `MAYA_APP_DIR` to an empty temp folder first, then unzip a built release):
 
 ```powershell
-mayapy tests\test_installer.py <unzipped release folder> install
-mayapy tests\test_installer.py <unzipped release folder> check-module   # in a fresh mayapy
+mayapy maya\tests\test_installer.py <unzipped release folder> install
+mayapy maya\tests\test_installer.py <unzipped release folder> check-module   # in a fresh mayapy
 ```
 
 `capture_viewport` needs the Maya GUI. Headless Maya has no viewport.
 
 ### Releasing
 
-1. Bump `PLUGIN_VERSION` in the plug-in and `__version__` in `src/maya_mcp_bridge/__init__.py` (the build fails if they differ).
+1. Bump `PLUGIN_VERSION` in the plug-in and `__version__` in `maya/maya_mcp_bridge/__init__.py` (the build fails if they differ).
 2. Push to `main`. That's the server release: uvx installs from the repo.
-3. `python tools/build_release.py`, then create a GitHub release tagged `v<version>` and attach `dist/maya-mcp-bridge-<version>.zip`.
+3. `python tools/build_maya_release.py`, then create a GitHub release tagged `maya-v<version>` and attach `dist/maya-mcp-bridge-<version>.zip`.

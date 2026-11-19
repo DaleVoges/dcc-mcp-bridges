@@ -16,8 +16,8 @@ import time
 os.environ["HOUDINI_MCP_PORT"] = "7490"
 os.environ["HOUDINI_MCP_PORT_RANGE"] = "2"
 HERE = os.path.dirname(os.path.abspath(__file__))
-SRC = os.path.join(HERE, "..", "src")
-sys.path.insert(0, SRC)
+SRC = os.pathsep.join([os.path.join(HERE, ".."), os.path.join(HERE, "..", "..", "core")])
+sys.path[:0] = SRC.split(os.pathsep)
 from houdini_mcp_bridge import server as s  # noqa: E402
 
 HOUDINI, OUT = sys.argv[1], sys.argv[2]
@@ -32,14 +32,14 @@ proc = subprocess.Popen([HOUDINI], env=env)
 try:
     info = None
     for _ in range(240):
-        found = [i for i in s.scan() if i["pid"] == proc.pid]
+        found = [i for i in s.bridge.scan() if i["pid"] == proc.pid]
         if found:
             info = found[0]
             break
         time.sleep(1)
     assert info, "graphical Houdini did not start the bridge"
     assert info["ui"] is True, info
-    print("autostart OK:", s._describe([info]))
+    print("autostart OK:", s.bridge.describe([info]))
     s.select_houdini_session(info["port"])
 
     print(s.execute_python('''

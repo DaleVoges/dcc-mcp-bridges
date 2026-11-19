@@ -27,7 +27,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 ### 1. Houdini: install the package
 
 ```bash
-uvx --from git+https://github.com/DaleVoges/houdini-mcp-bridge houdini-mcp-bridge install
+uvx --from git+https://github.com/DaleVoges/dcc-mcp-bridges houdini-mcp-bridge install
 ```
 
 This adds a [Houdini package](https://www.sidefx.com/docs/houdini/ref/plugins.html) to every Houdini version you've run (each `houdiniX.Y` prefs folder). Restart Houdini: the bridge starts with it, and the console shows `[Claude MCP] Bridge listening on 127.0.0.1:7477`.
@@ -41,7 +41,7 @@ To **update**, run the same command again. To **uninstall**, run it with `uninst
 **Claude Code:**
 
 ```bash
-claude mcp add houdini -- uvx --from git+https://github.com/DaleVoges/houdini-mcp-bridge houdini-mcp-bridge
+claude mcp add houdini -- uvx --from git+https://github.com/DaleVoges/dcc-mcp-bridges houdini-mcp-bridge
 ```
 
 **Claude Desktop:** open Settings → Developer → Edit Config and add:
@@ -51,7 +51,7 @@ claude mcp add houdini -- uvx --from git+https://github.com/DaleVoges/houdini-mc
   "mcpServers": {
     "houdini": {
       "command": "uvx",
-      "args": ["--from", "git+https://github.com/DaleVoges/houdini-mcp-bridge", "houdini-mcp-bridge"]
+      "args": ["--from", "git+https://github.com/DaleVoges/dcc-mcp-bridges", "houdini-mcp-bridge"]
     }
   }
 }
@@ -88,7 +88,7 @@ Each Houdini takes the first free port from 7477 to 7486, and the console shows 
 - **Several open:** the tools refuse to run until one is chosen. Claude lists them by version and open .hip file, asks you which one, then selects it.
 - **The selected Houdini closes:** the next call fails with "nothing was run". Each Houdini is identified by its process ID as well as its port, so if another Houdini later takes the same port, Claude won't send code to it by mistake.
 
-Works alongside [maya-mcp-bridge](https://github.com/DaleVoges/maya-mcp-bridge): Maya uses ports 7377 and up, so both can be connected at once.
+All three bridges ([Maya](../maya), [Houdini](../houdini), [Nuke](../nuke)) use their own ports (7377+, 7477+, 7577+), so they can all be connected at once.
 
 ## Settings (environment variables)
 
@@ -115,43 +115,38 @@ The bridge runs any code it receives with your user's permissions. It only liste
 
 ## Development
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e . uv
-```
-
-Claude Code sessions opened in this folder use `.mcp.json`, which runs the server from `src/` (Windows venv path; on macOS/Linux use `.venv/bin/python`).
+Set up the venv at the repo root as the [main README](../README.md#development) describes, and run the commands below from the repo root.
 
 Layout:
 
-- `src/houdini_mcp_bridge/houdini_package/scripts/python/claude_mcp_bridge.py`: the bridge that runs inside Houdini
-- `src/houdini_mcp_bridge/install.py`: writes the Houdini package (`install` / `uninstall`)
-- `src/houdini_mcp_bridge/server.py`: the MCP server
+- `houdini/houdini_mcp_bridge/houdini_package/scripts/python/claude_mcp_bridge.py`: the bridge that runs inside Houdini
+- `houdini/houdini_mcp_bridge/install.py`: writes the Houdini package (`install` / `uninstall`)
+- `houdini/houdini_mcp_bridge/server.py`: the MCP server
 
 ### Tests
 
 The tests use ports 7490-7491 and throwaway prefs folders, so they never touch a Houdini you have open or your real prefs. Start a test bridge in headless hython:
 
 ```powershell
-& "C:\Program Files\Side Effects Software\Houdini 21.0.700\bin\hython.exe" tests\run_bridge_hython.py
+& "C:\Program Files\Side Effects Software\Houdini 21.0.700\bin\hython.exe" houdini\tests\run_bridge_hython.py
 ```
 
 Then:
 
 ```powershell
-.\.venv\Scripts\python.exe tests\test_tools.py         # each tool, called directly
-.\.venv\Scripts\python.exe tests\test_mcp_protocol.py  # through the MCP protocol, like Claude
+.\.venv\Scripts\python.exe houdini\tests\test_tools.py         # each tool, called directly
+.\.venv\Scripts\python.exe houdini\tests\test_mcp_protocol.py  # through the MCP protocol, like Claude
 ```
 
 These start their own Houdinis (stop any test bridge first):
 
 ```powershell
 $H = "C:\Program Files\Side Effects Software\Houdini 21.0.700\bin"
-.\.venv\Scripts\python.exe tests\test_multi_session.py "$H\hython.exe"
-.\.venv\Scripts\python.exe tests\test_installer.py "$H\hython.exe"      # any number of hythons
-.\.venv\Scripts\python.exe tests\test_gui.py "$H\houdinicore.exe" $env:TEMP  # opens a Houdini window
+.\.venv\Scripts\python.exe houdini\tests\test_multi_session.py "$H\hython.exe"
+.\.venv\Scripts\python.exe houdini\tests\test_installer.py "$H\hython.exe"      # any number of hythons
+.\.venv\Scripts\python.exe houdini\tests\test_gui.py "$H\houdinicore.exe" $env:TEMP  # opens a Houdini window
 ```
 
 ### Releasing
 
-Bump `BRIDGE_VERSION` in `claude_mcp_bridge.py` and `__version__` in `src/houdini_mcp_bridge/__init__.py` together, then push to `main`. uvx installs from the repo, so that's the release. Users get the new server when Claude restarts, and update the Houdini side by rerunning the install command (`houdini_status` tells them when it's out of date).
+Bump `BRIDGE_VERSION` in `claude_mcp_bridge.py` and `__version__` in `houdini/houdini_mcp_bridge/__init__.py` together, then push to `main`. uvx installs from the repo, so that's the release. Users get the new server when Claude restarts, and update the Houdini side by rerunning the install command (`houdini_status` tells them when it's out of date).

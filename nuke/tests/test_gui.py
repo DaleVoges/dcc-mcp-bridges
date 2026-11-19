@@ -15,8 +15,8 @@ import time
 os.environ["NUKE_MCP_PORT"] = "7590"
 os.environ["NUKE_MCP_PORT_RANGE"] = "2"
 HERE = os.path.dirname(os.path.abspath(__file__))
-SRC = os.path.join(HERE, "..", "src")
-sys.path.insert(0, SRC)
+SRC = os.pathsep.join([os.path.join(HERE, ".."), os.path.join(HERE, "..", "..", "core")])
+sys.path[:0] = SRC.split(os.pathsep)
 from nuke_mcp_bridge import server as s  # noqa: E402
 
 NUKE, OUT = sys.argv[1], sys.argv[2]
@@ -29,14 +29,14 @@ proc = subprocess.Popen([NUKE], env=env)
 try:
     info = None
     for _ in range(240):
-        found = [i for i in s.scan() if i["pid"] == proc.pid]
+        found = [i for i in s.bridge.scan() if i["pid"] == proc.pid]
         if found:
             info = found[0]
             break
         time.sleep(1)
     assert info, "graphical Nuke did not start the bridge"
     assert info["gui"] is True and info["script"] == "Untitled", info
-    print("autostart OK:", s._describe([info]))
+    print("autostart OK:", s.bridge.describe([info]))
     s.select_nuke_session(info["port"])
 
     out = s.execute_python('[i.name() for i in nuke.menu("Nuke").findItem("Edit/Claude MCP").items()]')

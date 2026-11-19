@@ -1,0 +1,53 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dcc-mcp-bridges"
+dynamic = ["version"]
+description = "MCP servers that let Claude drive live Maya, Houdini and Nuke sessions through a bridge running inside each app."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["mcp>=1.2,<3"]
+keywords = ["mcp", "model-context-protocol", "claude", "maya", "houdini", "nuke", "dcc", "vfx"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Topic :: Multimedia :: Graphics :: 3D Modeling",
+    "Topic :: Multimedia :: Graphics :: 3D Rendering",
+    "Topic :: Multimedia :: Video",
+]
+
+[project.urls]
+Homepage = "https://github.com/DaleVoges/dcc-mcp-bridges"
+Issues = "https://github.com/DaleVoges/dcc-mcp-bridges/issues"
+
+# One install gives all three servers; Claude runs whichever one it is configured with.
+[project.scripts]
+maya-mcp-bridge = "maya_mcp_bridge.server:main"
+houdini-mcp-bridge = "houdini_mcp_bridge.server:main"
+nuke-mcp-bridge = "nuke_mcp_bridge.server:main"
+
+[tool.hatch.version]
+path = "core/dcc_mcp_core/__init__.py"
+
+# Each folder's package installs under its own name (dcc_mcp_core, maya_mcp_bridge, ...).
+[tool.hatch.build.targets.wheel]
+packages = [
+    "core/dcc_mcp_core",
+    "maya/maya_mcp_bridge",
+    "houdini/houdini_mcp_bridge",
+    "nuke/nuke_mcp_bridge",
+]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "core/dcc_mcp_core/",
+    "maya/maya_mcp_bridge/",
+    "houdini/houdini_mcp_bridge/",
+    "nuke/nuke_mcp_bridge/",
+    "README.md",
+    "pyproject.toml",
+]

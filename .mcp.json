@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "maya": {
+      "command": ".venv/Scripts/python.exe",
+      "args": ["-m", "maya_mcp_bridge"]
+    },
+    "houdini": {
+      "command": ".venv/Scripts/python.exe",
+      "args": ["-m", "houdini_mcp_bridge"]
+    },
+    "nuke": {
+      "command": ".venv/Scripts/python.exe",
+      "args": ["-m", "nuke_mcp_bridge"]
+    }
+  }
+}

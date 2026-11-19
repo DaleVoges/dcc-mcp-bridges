@@ -24,8 +24,8 @@ MOD_FILE = MODULE_NAME + ".mod"
 PLUGIN = "claude_mcp_bridge"
 LEGACY_MOD_FILES = ("claude_mcp.mod",)  # written by the old install.ps1
 SETUP_COMMAND = ("claude mcp add maya -- uvx --from "
-                 "git+https://github.com/DaleVoges/maya-mcp-bridge maya-mcp-bridge")
-README_URL = "https://github.com/DaleVoges/maya-mcp-bridge#connect-claude"
+                 "git+https://github.com/DaleVoges/dcc-mcp-bridges maya-mcp-bridge")
+README_URL = "https://github.com/DaleVoges/dcc-mcp-bridges/tree/main/maya#connect-claude"
 
 
 def _here():

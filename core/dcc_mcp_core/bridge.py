@@ -4,7 +4,7 @@ Protocol: one JSON object per line each way. Requests carry "cmd" (ping, python,
 hscript, tcl, capture...) and an "id"; replies carry "ok", "result", "error" and "stdout".
 A ping returns the session info: port, pid, app version, open scene, busy flag...
 
-Env vars, with <APP> being MAYA, HOUDINI or NUKE:
+Env vars, with <APP> being MAYA, HOUDINI, NUKE or BLENDER:
     <APP>_MCP_HOST        (default 127.0.0.1)
     <APP>_MCP_PORT        first port to scan (default: the app's own, e.g. 7377 for Maya)
     <APP>_MCP_PORT_RANGE  how many ports to scan (default 10)

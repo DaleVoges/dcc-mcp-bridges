@@ -88,7 +88,7 @@ Each Houdini takes the first free port from 7477 to 7486, and the console shows 
 - **Several open:** the tools refuse to run until one is chosen. Claude lists them by version and open .hip file, asks you which one, then selects it.
 - **The selected Houdini closes:** the next call fails with "nothing was run". Each Houdini is identified by its process ID as well as its port, so if another Houdini later takes the same port, Claude won't send code to it by mistake.
 
-All three bridges ([Maya](../maya), [Houdini](../houdini), [Nuke](../nuke)) use their own ports (7377+, 7477+, 7577+), so they can all be connected at once.
+All the bridges ([Maya](../maya), [Houdini](../houdini), [Nuke](../nuke), [Blender](../blender)) use their own ports (7377+, 7477+, 7577+, 7677+), so they can all be connected at once.
 
 ## Settings (environment variables)
 

@@ -1,4 +1,4 @@
-"""Shared plumbing for the DCC MCP servers (Maya, Houdini, Nuke).
+"""Shared plumbing for the DCC MCP servers (Maya, Houdini, Nuke, Blender).
 
 Each app's bridge runs inside the app and answers newline-delimited JSON on a local TCP
 port. `Bridge` finds those ports, keeps the selected session's connection, and turns

@@ -11,6 +11,10 @@
     "nuke": {
       "command": ".venv/Scripts/python.exe",
       "args": ["-m", "nuke_mcp_bridge"]
+    },
+    "blender": {
+      "command": ".venv/Scripts/python.exe",
+      "args": ["-m", "blender_mcp_bridge"]
     }
   }
 }

@@ -89,7 +89,7 @@ Each Nuke takes the first free port from 7577 to 7586, and the Script Editor sho
 - **Several open:** the tools refuse to run until one is chosen. Claude lists them by version and open script, asks you which one, then selects it.
 - **The selected Nuke closes:** the next call fails with "nothing was run". Each Nuke is identified by its process ID as well as its port, so if another Nuke later takes the same port, Claude won't send code to it by mistake.
 
-All three bridges ([Maya](../maya), [Houdini](../houdini), [Nuke](../nuke)) use their own ports (7377+, 7477+, 7577+), so they can all be connected at once.
+All the bridges ([Maya](../maya), [Houdini](../houdini), [Nuke](../nuke), [Blender](../blender)) use their own ports (7377+, 7477+, 7577+, 7677+), so they can all be connected at once.
 
 ## Settings (environment variables)
 

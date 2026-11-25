@@ -5,11 +5,11 @@ build-backend = "hatchling.build"
 [project]
 name = "dcc-mcp-bridges"
 dynamic = ["version"]
-description = "MCP servers that let Claude drive live Maya, Houdini and Nuke sessions through a bridge running inside each app."
+description = "MCP servers that let Claude drive live Maya, Houdini, Nuke and Blender sessions through a bridge running inside each app."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = ["mcp>=1.2,<3"]
-keywords = ["mcp", "model-context-protocol", "claude", "maya", "houdini", "nuke", "dcc", "vfx"]
+keywords = ["mcp", "model-context-protocol", "claude", "maya", "houdini", "nuke", "blender", "dcc", "vfx"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: Microsoft :: Windows",
@@ -24,11 +24,12 @@ classifiers = [
 Homepage = "https://github.com/DaleVoges/dcc-mcp-bridges"
 Issues = "https://github.com/DaleVoges/dcc-mcp-bridges/issues"
 
-# One install gives all three servers; Claude runs whichever one it is configured with.
+# One install gives every server; Claude runs whichever one it is configured with.
 [project.scripts]
 maya-mcp-bridge = "maya_mcp_bridge.server:main"
 houdini-mcp-bridge = "houdini_mcp_bridge.server:main"
 nuke-mcp-bridge = "nuke_mcp_bridge.server:main"
+blender-mcp-bridge = "blender_mcp_bridge.server:main"
 
 [tool.hatch.version]
 path = "core/dcc_mcp_core/__init__.py"
@@ -40,6 +41,7 @@ packages = [
     "maya/maya_mcp_bridge",
     "houdini/houdini_mcp_bridge",
     "nuke/nuke_mcp_bridge",
+    "blender/blender_mcp_bridge",
 ]
 
 [tool.hatch.build.targets.sdist]
@@ -48,6 +50,7 @@ include = [
     "maya/maya_mcp_bridge/",
     "houdini/houdini_mcp_bridge/",
     "nuke/nuke_mcp_bridge/",
+    "blender/blender_mcp_bridge/",
     "README.md",
     "pyproject.toml",
 ]
